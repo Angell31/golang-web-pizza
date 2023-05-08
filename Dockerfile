@@ -18,4 +18,3 @@ COPY --from=builder /usr/src/app .
 EXPOSE 8080
 
 CMD ["./app"]
-

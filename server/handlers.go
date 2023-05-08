@@ -1,47 +1,131 @@
 package server
 
 import (
-	"encoding/json"
+	"context"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
-	"os"
 	"pizza/data"
-	"pizza/helper"
 	"strconv"
 	"time"
 )
+
+var MySessionName data.User
 
 func getCustomerOrders(c *gin.Context) {
 	idCustomer := c.Param("id")
 	id, _ := strconv.Atoi(idCustomer)
 
-	helper.ReadJSONFile("data/order.json", &data.Orders)
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.Connect(context.Background(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(context.Background())
 
-	var customerOrders []data.Order
+	collection := client.Database("mojabaza").Collection("orders")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	for _, v := range data.Orders {
-		if v.UserID == id {
-			customerOrders = append(customerOrders, v)
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cursor.Close(ctx)
+
+	var orders []data.Order
+	for cursor.Next(ctx) {
+		var menuItem data.Order
+		err := cursor.Decode(&menuItem)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if menuItem.UserID == id {
+			orders = append(orders, menuItem)
 		}
 	}
-	c.JSON(http.StatusOK, customerOrders)
+
+	if err := cursor.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	data.Orders = orders
+	c.IndentedJSON(http.StatusOK, orders)
 }
 
 func getMenu(c *gin.Context) {
-	helper.ReadJSONFile("data/menu.json", &data.Menu)
-	c.IndentedJSON(http.StatusOK, &data.Menu)
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.Connect(context.Background(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(context.Background())
+
+	collection := client.Database("mojabaza").Collection("menu")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cursor.Close(ctx)
+
+	var menu []data.Pizza
+	for cursor.Next(ctx) {
+		var menuItem data.Pizza
+		err := cursor.Decode(&menuItem)
+		if err != nil {
+			log.Fatal(err)
+		}
+		menu = append(menu, menuItem)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Fatal(err)
+	}
+	data.Menu = menu
+	c.IndentedJSON(http.StatusOK, menu)
 }
 
 func getOrders(c *gin.Context) {
-	helper.ReadJSONFile("data/menu.json", &data.Orders)
-	c.IndentedJSON(http.StatusOK, &data.Orders)
-}
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.Connect(context.Background(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(context.Background())
 
-func getUsers(c *gin.Context) {
-	helper.ReadJSONFile("data/menu.json", &data.Users)
-	c.IndentedJSON(http.StatusOK, &data.Users)
+	collection := client.Database("mojabaza").Collection("orders")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cursor.Close(ctx)
+
+	var orders []data.Order
+	for cursor.Next(ctx) {
+		var menuItem data.Order
+		err := cursor.Decode(&menuItem)
+		if err != nil {
+			log.Fatal(err)
+		}
+		orders = append(orders, menuItem)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	data.Orders = orders
+	c.IndentedJSON(http.StatusOK, orders)
 }
 
 func createPizza(c *gin.Context) {
@@ -55,35 +139,27 @@ func createPizza(c *gin.Context) {
 		return
 	}
 
-	file, err := os.Open("data/menu.json")
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open menu file"})
-		return
+		log.Fatal(err)
 	}
-	defer file.Close()
-
-	var menu []data.Pizza
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&menu); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read menu file"})
-		return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer client.Disconnect(ctx)
 
-	pizzaCounter := len(menu) + 1
+	collection := client.Database("mojabaza").Collection("menu")
+	count, _ := collection.CountDocuments(ctx, bson.M{})
+	pizzaCounter := int(count) + 1
+
 	newPizza := data.Pizza{ID: pizzaCounter, Name: name, Description: description, Price: price}
-	menu = append(menu, newPizza)
-
-	file, err = os.Create("data/menu.json")
+	_, err = collection.InsertOne(ctx, newPizza)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu file"})
-		return
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(menu); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write to menu file"})
-		return
+		log.Fatal(err)
 	}
 
 	c.JSON(http.StatusOK, newPizza)
@@ -95,61 +171,71 @@ func createOrder(c *gin.Context) {
 	idPizza, _ := strconv.Atoi(idPizzaInt)
 	idUser, _ := strconv.Atoi(idUserInt)
 
-	file, err := os.Open("data/order.json")
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open order file"})
-		return
+		log.Fatal(err)
 	}
-	defer file.Close()
-
-	var orders []data.Order
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&orders); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read order file"})
-		return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer client.Disconnect(ctx)
 
-	orderCounter := len(orders) + 1
+	collection := client.Database("mojabaza").Collection("orders")
+	count, _ := collection.CountDocuments(ctx, bson.M{})
+	orderCounter := int(count) + 1
+
 	newOrder := data.Order{ID: orderCounter, UserID: idUser, PizzaID: idPizza, Status: "preparing"}
-
-	orders = append(orders, newOrder)
-
-	file, err = os.Create("data/order.json")
+	_, err = collection.InsertOne(ctx, newOrder)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order file"})
-		return
+		log.Fatal(err)
 	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(orders); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write to orders file"})
-		return
-	}
-
 	StartOrderTicker(newOrder.ID)
+	c.JSON(http.StatusOK, newOrder)
 
 }
 
 func deletePizza(c *gin.Context) {
 	idStr := c.Param("id")
 	id, _ := strconv.Atoi(idStr)
-	_, i := helper.GetPizzaById(id)
-	data.Menu = append(data.Menu[:i], data.Menu[i+1:]...)
-	c.JSON(http.StatusOK, data.Menu)
 
-	file, err := os.Create("data/menu.json")
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu file"})
-		return
+		log.Fatal(err)
 	}
-	defer file.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
 
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(data.Menu); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write to menu file"})
-		return
+	collection := client.Database("mojabaza").Collection("menu")
+	_, err = collection.DeleteOne(ctx, bson.M{"ID": id})
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	filter := bson.M{}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cursor.Close(ctx)
+
+	var menu []data.Pizza
+	if err = cursor.All(ctx, &menu); err != nil {
+		log.Fatal(err)
+	}
+
+	data.Menu = menu
+
+	c.JSON(http.StatusOK, data.Menu)
 }
 
 func cancelOrder(c *gin.Context) {
@@ -159,42 +245,50 @@ func cancelOrder(c *gin.Context) {
 		return
 	}
 
-	var targetOrder *data.Order
-	for i, order := range data.Orders {
-		if order.ID == orderID {
-			if MySessionName.Token == "usertoken" && order.Status == "ready_to_be_delivered" {
-				c.AbortWithStatusJSON(http.StatusFailedDependency, nil)
-				return
-			}
-			targetOrder = &data.Orders[i]
-			//orders[i].Status = "cancelled"
-			break
-		}
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	collection := client.Database("mojabaza").Collection("orders")
+
+	var order data.Order
+	err = collection.FindOne(ctx, bson.M{"id": orderID}).Decode(&order)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
+		return
 	}
 
-	if targetOrder == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+	if MySessionName.ID != order.UserID && MySessionName.Token == "usertoken" {
+		c.AbortWithStatusJSON(http.StatusFailedDependency, nil)
+		return
+	}
+
+	if MySessionName.Token == "usertoken" && order.Status == "ready_to_be_delivered" {
+		c.AbortWithStatusJSON(http.StatusFailedDependency, nil)
 		return
 	}
 
 	StopOrderTicker(orderID)
 
-	targetOrder.Status = "cancelled"
-
-	file, err := os.Create("data/order.json")
+	filter := bson.M{"id": orderID}
+	update := bson.M{"$set": bson.M{"status": "cancelled"}}
+	_, err = collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order file"})
-		return
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(data.Orders); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write to orders file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order in database"})
 		return
 	}
 
-	c.JSON(http.StatusOK, targetOrder)
+	c.JSON(http.StatusOK, order)
+
 }
 
 func getOrderStatus(c *gin.Context) {
@@ -205,12 +299,29 @@ func getOrderStatus(c *gin.Context) {
 		return
 	}
 
-	for _, order := range data.Orders {
-		if order.ID == orderID && order.UserID == MySessionName.ID {
-			c.JSON(http.StatusOK, order.Status)
-			return
-		}
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
+	if err != nil {
+		log.Fatal(err)
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	collection := client.Database("mojabaza").Collection("orders")
+
+	var order data.Order
+	err = collection.FindOne(ctx, bson.M{"id": orderID}).Decode(&order)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
+		return
+	}
+
+	c.JSON(http.StatusOK, order.Status)
 
 }
 
@@ -227,35 +338,27 @@ func registerUser(c *gin.Context) {
 	}
 	password = string(hashedPassword)
 
-	file, err := os.Open("data/users.json")
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open users file"})
-		return
+		log.Fatal(err)
 	}
-	defer file.Close()
-
-	var users []data.User
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read users file"})
-		return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer client.Disconnect(ctx)
 
-	userCounter := len(users) + 1
+	collection := client.Database("mojabaza").Collection("users")
+	count, _ := collection.CountDocuments(ctx, bson.M{})
+	userCounter := int(count) + 1
+
 	newUser := data.User{ID: userCounter, Name: name, Email: email, Password: password, Address: address, Token: "usertoken"}
-	users = append(users, newUser)
-
-	file, err = os.Create("data/users.json")
+	_, err = collection.InsertOne(ctx, newUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu file"})
-		return
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write to menu file"})
-		return
+		log.Fatal(err)
 	}
 
 	c.JSON(http.StatusOK, newUser)
@@ -265,72 +368,99 @@ func loginUser(c *gin.Context) {
 	name := c.PostForm("name")
 	password := c.PostForm("password")
 
-	for _, v := range data.Users {
-		if v.Name == name {
-
-			pass := bcrypt.CompareHashAndPassword([]byte(v.Password), []byte(password))
-			if pass == nil {
-				MySessionName = &v
-				c.JSON(http.StatusOK, v)
-			} else {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
-			}
-
-		}
+	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	client, err := mongo.NewClient(clientOptions)
+	if err != nil {
+		log.Fatal(err)
 	}
-	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
-	return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	collection := client.Database("mojabaza").Collection("users")
+
+	var user data.User
+	err = collection.FindOne(ctx, bson.M{"name": name}).Decode(&user)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
+		return
+	}
+
+	pass := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if pass == nil {
+		MySessionName = user
+		c.JSON(http.StatusOK, user)
+		return
+	} else {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad login"})
+		return
+	}
+
 }
 
 func StartOrderTicker(orderID int) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
 	OrderTickers[orderID] = ticker
 
 	go func() {
 		<-ticker.C
-		for i := range data.Orders {
-			if data.Orders[i].ID == orderID {
-				data.Orders[i].Status = "ready_to_be_delivered"
-				file, err := os.Create("data/order.json")
-				if err != nil {
-					log.Println("Failed to create order file:", err)
-					return
-				}
-				defer file.Close()
-
-				encoder := json.NewEncoder(file)
-				if err := encoder.Encode(data.Orders); err != nil {
-					log.Println("Failed to write to orders file:", err)
-					return
-				}
-				break
-			}
+		clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+		client, err := mongo.NewClient(clientOptions)
+		if err != nil {
+			log.Fatal(err)
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err = client.Connect(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Disconnect(ctx)
+
+		collection := client.Database("mojabaza").Collection("orders")
+
+		// Find the order by ID and update its status field
+		filter := bson.M{"id": orderID}
+		update := bson.M{"$set": bson.M{"status": "ready_to_be_delivered"}}
+		_, err = collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		ticker.Stop()
 
 		// Update order status to "delivered" after 2 minutes
-		ticker = time.NewTicker(10 * time.Second)
+		ticker = time.NewTicker(15 * time.Second)
 		OrderTickers[orderID] = ticker
-		<-ticker.C
-		for i := range data.Orders {
-			if data.Orders[i].ID == orderID {
-				data.Orders[i].Status = "delivered"
-				// Write updated orders slice to orders file
-				file, err := os.Create("data/order.json")
-				if err != nil {
-					log.Println("Failed to create order file:", err)
-					return
-				}
-				defer file.Close()
 
-				encoder := json.NewEncoder(file)
-				if err := encoder.Encode(data.Orders); err != nil {
-					log.Println("Failed to write to orders file:", err)
-					return
-				}
-				break
-			}
+		<-ticker.C
+		clientOptions = options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+		client, err = mongo.NewClient(clientOptions)
+		if err != nil {
+			log.Fatal(err)
 		}
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err = client.Connect(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Disconnect(ctx)
+
+		collection = client.Database("mojabaza").Collection("orders")
+
+		// Find the order by ID and update its status field
+		filter = bson.M{"id": orderID}
+		update = bson.M{"$set": bson.M{"status": "delivered"}}
+		_, err = collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		ticker.Stop()
 		delete(OrderTickers, orderID)
 	}()

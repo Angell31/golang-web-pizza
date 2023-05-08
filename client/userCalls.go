@@ -45,8 +45,8 @@ func deletePizzaClient() {
 }
 
 func signOut() {
-	sessionUser = data.User{ID: 0, Name: "", Email: "", Password: "", Address: "", Token: ""}
-	server.MySessionName = nil
+	SessionUser = data.User{ID: 0, Name: "", Email: "", Password: "", Address: "", Token: ""}
+	server.MySessionName = data.User{0, "", "", "", "", ""}
 	return
 }
 

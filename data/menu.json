@@ -1,1 +1,26 @@
-[{"ID":1,"Name":"Margherita","Description":"Tomato sauce, mozzarella cheese, and basil","Price":10.99},{"ID":4,"Name":"Srpska","Description":"Kulen, kajmak, jaja, ljuta papticica","Price":15.99}]
+[
+  {
+    "id":1,
+    "name":"Margherita",
+    "description":"Tomato sauce, mozzarella cheese, and basil",
+    "price":10.99
+  },
+  {
+    "id":2,
+    "name":"Pepperoni",
+    "description": "Tomato sauce, mozzarella, and pepperoni.",
+    "price":12.99
+  },
+  {
+    "id":3,
+    "name":"Srpska",
+    "description":"Kulen, kajmak, jaja, ljuta papticica",
+    "price":15.99
+  },
+  {
+    "id":4,
+    "name":"Hawaiian",
+    "description": "Tomato sauce, mozzarella, ham, and pineapple.",
+    "price":11.99
+  }
+]

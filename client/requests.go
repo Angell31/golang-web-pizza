@@ -48,7 +48,7 @@ func getAllOrders() {
 
 func getClientOrders() error {
 
-	url := fmt.Sprintf("http://localhost:8080/orders/%v", sessionUser.ID)
+	url := fmt.Sprintf("http://localhost:8080/orders/%v", SessionUser.ID)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -121,7 +121,7 @@ func loginRequest(name string, password string) {
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-	decoder.Decode(&sessionUser)
+	decoder.Decode(&SessionUser)
 	return
 }
 
@@ -156,9 +156,9 @@ func deletePizzaRequest(id int) error {
 func createOrderRequest(pizza string) error {
 	formData := url.Values{}
 	formData.Set("pizza", pizza)
-	formData.Set("IdUser", strconv.Itoa(sessionUser.ID))
+	formData.Set("IdUser", strconv.Itoa(SessionUser.ID))
 
-	fmt.Println(sessionUser.ID)
+	fmt.Println(SessionUser.ID)
 	resp, _ := http.PostForm("http://localhost:8080/order", formData)
 
 	defer resp.Body.Close()

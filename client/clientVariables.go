@@ -2,4 +2,4 @@ package client
 
 import "pizza/data"
 
-var sessionUser data.User
+var SessionUser data.User

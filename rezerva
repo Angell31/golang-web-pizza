@@ -1,0 +1,55 @@
+FROM --platform=linux/amd64 golang:latest as builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+
+FROM --platform=linux/amd64 alpine:latest
+
+WORKDIR /root/
+
+COPY --from=builder /usr/src/app .
+
+EXPOSE 8080
+
+CMD ["./app"]
+
+
+
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - data:/data
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+    networks:
+      - mongodb_network
+
+  pizza-app-1:
+    build: .
+    container_name: pizza-app-1
+    ports:
+      - 8080:8080
+    depends_on:
+      - mongodb
+    networks:
+      - mongodb_network
+
+volumes:
+  data: {}
+
+networks:
+  mongodb_network:
+    driver: bridge

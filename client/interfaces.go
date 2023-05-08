@@ -20,11 +20,11 @@ func InitInterface() {
 		switch opt {
 		case "1":
 			loginClient()
-			if sessionUser.Name == "" {
+			if SessionUser.Name == "" {
 				fmt.Println("Bad login. Try again!")
 				break
 			}
-			if sessionUser.Token == "usertoken" {
+			if SessionUser.Token == "usertoken" {
 				userInterface()
 			} else {
 				adminInterface()
@@ -39,7 +39,7 @@ func InitInterface() {
 
 func userInterface() {
 	for {
-		fmt.Printf("\nWelcome to GoPizza, %v!\n\n", sessionUser.Name)
+		fmt.Printf("\nWelcome to GoPizza, %v!\n\n", SessionUser.Name)
 		fmt.Println("1. List menu")
 		fmt.Println("2. Order pizza")
 		fmt.Println("3. List my orders")
@@ -71,7 +71,7 @@ func userInterface() {
 
 func adminInterface() {
 	for {
-		fmt.Printf("\nWelcome to GoPizza, %v!\n\n", sessionUser.Name)
+		fmt.Printf("\nWelcome to GoPizza, %v!\n\n", SessionUser.Name)
 		fmt.Println("1. List menu")
 		fmt.Println("2. Add pizza")
 		fmt.Println("3. DeletePizza")

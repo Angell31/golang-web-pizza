@@ -1,0 +1,23 @@
+version: “3.8”
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - data:/data
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+
+  pizza-app-1:
+    build: .
+    container_name: pizza-app-1
+    ports:
+      - 8080:8080
+    depends_on:
+      - mongodb
+
+volumes:
+  data: {}

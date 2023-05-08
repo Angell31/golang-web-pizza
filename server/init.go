@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net"
-	"pizza/data"
-	"pizza/helper"
 )
 
 func CheckServer() {
@@ -23,15 +21,10 @@ func CheckServer() {
 
 func initServer() {
 
-	helper.ReadJSONFile("data/menu.json", &data.Menu)
-	helper.ReadJSONFile("data/order.json", &data.Orders)
-	helper.ReadJSONFile("data/users.json", &data.Users)
-
 	router := gin.Default()
 
 	router.GET("/menu", getMenu)
 	router.GET("/order", getOrders)
-	router.GET("/users", getUsers)
 	router.GET("/order/:id/status", getOrderStatus)
 	router.GET("/orders/:id", getCustomerOrders)
 
