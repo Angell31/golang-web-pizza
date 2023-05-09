@@ -7,17 +7,19 @@ services:
       - 27017:27017
     volumes:
       - data:/data
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=root
 
-  pizza-app-1:
-    build: .
-    container_name: pizza-app-1
+
+  mongo-express:
+    image: mongo-express
+    restart: always
     ports:
-      - 8080:8080
-    depends_on:
-      - mongodb
+      - "8083:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
 
 volumes:
   data: {}
+
+networks:
+  default:
+    name: mongodb_network1

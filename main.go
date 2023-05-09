@@ -8,8 +8,6 @@ import (
 func main() {
 
 	server.CheckServer()
-	//data.ConnectDatabase
 	client.InitInterface()
-	//data.DisconnectDatabase()
 
 }

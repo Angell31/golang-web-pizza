@@ -20,7 +20,7 @@ func getCustomerOrders(c *gin.Context) {
 	idCustomer := c.Param("id")
 	id, _ := strconv.Atoi(idCustomer)
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -58,12 +58,17 @@ func getCustomerOrders(c *gin.Context) {
 }
 
 func getMenu(c *gin.Context) {
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
+
+	err = client.Ping(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	collection := client.Database("mojabaza").Collection("menu")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -93,7 +98,7 @@ func getMenu(c *gin.Context) {
 }
 
 func getOrders(c *gin.Context) {
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -139,7 +144,7 @@ func createPizza(c *gin.Context) {
 		return
 	}
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -171,7 +176,7 @@ func createOrder(c *gin.Context) {
 	idPizza, _ := strconv.Atoi(idPizzaInt)
 	idUser, _ := strconv.Atoi(idUserInt)
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -202,7 +207,7 @@ func deletePizza(c *gin.Context) {
 	idStr := c.Param("id")
 	id, _ := strconv.Atoi(idStr)
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -216,7 +221,7 @@ func deletePizza(c *gin.Context) {
 	defer client.Disconnect(ctx)
 
 	collection := client.Database("mojabaza").Collection("menu")
-	_, err = collection.DeleteOne(ctx, bson.M{"ID": id})
+	_, err = collection.DeleteOne(ctx, bson.M{"id": id})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -245,7 +250,7 @@ func cancelOrder(c *gin.Context) {
 		return
 	}
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -299,7 +304,7 @@ func getOrderStatus(c *gin.Context) {
 		return
 	}
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -338,7 +343,7 @@ func registerUser(c *gin.Context) {
 	}
 	password = string(hashedPassword)
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -368,7 +373,7 @@ func loginUser(c *gin.Context) {
 	name := c.PostForm("name")
 	password := c.PostForm("password")
 
-	clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -408,7 +413,7 @@ func StartOrderTicker(orderID int) {
 
 	go func() {
 		<-ticker.C
-		clientOptions := options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+		clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 		client, err := mongo.NewClient(clientOptions)
 		if err != nil {
 			log.Fatal(err)
@@ -438,7 +443,7 @@ func StartOrderTicker(orderID int) {
 		OrderTickers[orderID] = ticker
 
 		<-ticker.C
-		clientOptions = options.Client().ApplyURI("mongodb://root:root@localhost:27017")
+		clientOptions = options.Client().ApplyURI("mongodb://mongodb:27017")
 		client, err = mongo.NewClient(clientOptions)
 		if err != nil {
 			log.Fatal(err)
