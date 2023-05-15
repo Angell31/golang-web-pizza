@@ -8,7 +8,6 @@ services:
     volumes:
       - data:/data
 
-
   mongo-express:
     image: mongo-express
     restart: always
@@ -16,6 +15,17 @@ services:
       - "8083:8081"
     environment:
       ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+
+  pizza-app-1:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: pizza-app-1
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
 
 volumes:
   data: {}
